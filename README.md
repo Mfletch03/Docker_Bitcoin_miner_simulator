@@ -16,11 +16,6 @@ This repository contains an MQTT broker (Eclipse Mosquitto), a controller servic
 - `newblock` — Controller publishes the winning block hash so miners update their prev_hash.
 - `final_results` — Controller publishes a summary when mining stops.
 
-Quick Notes / Known Issues
-- The repository contains a Compose file named `docker-compse.yml` (typo). Either rename it to `docker-compose.yml` or pass the file explicitly when using `docker compose -f docker-compse.yml`.
-- The `Broker` directory is capitalized; the Compose file references `broker` (lowercase). On Linux this is case-sensitive — either rename the folder or update the Compose file to match.
-- The controller's Python file is named `controllor.py` (double `l`) while the Dockerfile expects `controller.py`; to run the controller container, either rename the file or update the Dockerfile's `CMD`.
-
 How It Works
 - The controller subscribes to `foundblock` to receive miner reports. When the first valid block for the current round is received, it publishes the new block hash to `newblock` and records a win for the miner that reported it.
 - When the controller publishes `mine: start`, miners begin hashing for a block. When a hash matching the configured DIFFICULTY (`0` prefix length) is found, the miner publishes details to `foundblock`.
@@ -31,23 +26,30 @@ Service variables
 - `DIFFICULTY` — Number of leading zeros required for a valid hash (default `4`).
 - `START_DELAY` — Delay between blocks when running in the controller.
 
-Docker Compose (recommended)
-1. If you want to keep the existing `docker-compse.yml` name, use the file explicitly:
+Running services locally (with Docker Compose recommended)
+1. If you want to keep the existing `docker-compose.yml` name, use the file explicitly:
 
 ```bash
-docker compose -f docker-compse.yml up --build
+docker compose up
 ```
 
-2. To avoid passing the file, rename it to `docker-compose.yml`:
+2. open a second termial to publish the commands
+
+start command:
 ```bash
-mv docker-compse.yml docker-compose.yml
-docker compose up --build
+#In termial 2
+docker compose -f docker-compose.yml exec broker mosquitto_pub -h localhost -p 1883 -t controller_cmd -m start
+```
+Stop command:
+```bash
+#In termial 2
+docker compose -f docker-compose.yml exec broker mosquitto_pub -h localhost -p 1883 -t controller_cmd -m stop
 ```
 
-3. If you rename, also ensure the broker directory name matches Compose service path:
+3. When you are finished using the code the following command to take down and remove the docker containers.  
 ```bash
-# if Compose uses 'broker', rename the directory on Linux
-mv Broker broker
+#In termial 2
+docker compose down
 ```
 
 Running services locally (without Docker)
@@ -86,15 +88,13 @@ mosquitto_sub -h <broker_host> -t foundblock -v
 mosquitto_sub -h <broker_host> -t newblock -v
 ```
 
+Important note
+- You can use any synonym for start and stop for the start and stop command.  
+
 Troubleshooting
 - If a miner does not connect, ensure `MQTT_HOST` resolves from the container (with Compose it should be `broker`).
 - Watch logs for errors (file names and case mismatches are common; see 'Known Issues' above).
 - If miners are crashing due to modules not found, verify `paho-mqtt` is installed in the environment the script runs in.
-
-Next steps / Suggestions
-- Fix case/file typos in repo to improve reproducibility (rename either the folder or compose file paths).
-- Add a proper `docker-compose.yml` file and adjust service names/folders to match.
-- Add a small top-level run script to orchestrate building and starting containers.
 
 License
 - MIT-like: this repo doesn't include a license file — add one if you plan to share publicly.
